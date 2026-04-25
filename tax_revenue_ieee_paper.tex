@@ -1,0 +1,307 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{url}
+
+\graphicspath{{figures/}}
+
+\begin{document}
+
+\title{Tax Revenue Prediction Using Genetic Algorithms and Deep Neural Networks}
+
+\author{
+\IEEEauthorblockN{Aashlesh Lokesh}
+\IEEEauthorblockA{
+Department of Computer Science\\
+PES University\\
+Bengaluru, India\\
+PES1UG23AM007\\
+aashlesh.lokesh@gmail.com}
+\and
+\IEEEauthorblockN{Aman Kumar Mishra}
+\IEEEauthorblockA{
+Department of Computer Science\\
+PES University\\
+Bengaluru, India\\
+PES1UG23AM040\\
+mishraaman3979@gmail.com}
+\and
+\IEEEauthorblockN{Afrah Zainab}
+\IEEEauthorblockA{
+Department of Computer Science\\
+PES University\\
+Bengaluru, India\\
+PES1UG23AM029\\
+afrahzainab99@gmail.com}
+}
+
+\maketitle
+
+\begin{abstract}
+Accurate tax revenue forecasting is essential for public expenditure planning, fiscal deficit estimation, and long-term economic policy design. Traditional statistical and econometric models are useful for interpretable forecasting, but they often struggle to represent nonlinear interactions among macroeconomic indicators such as gross domestic product, trade variables, inflation, population, and tax policy rates. This paper presents a hybrid prediction framework that combines Genetic Algorithms (GA) with Deep Neural Networks (DNNs) for tax revenue forecasting. The GA performs neural architecture search by evolving candidate hidden-layer configurations and activation functions, while each candidate network is trained and validated using standardized macroeconomic features. The best architecture found by the search is retrained on the combined training and validation data and evaluated on a held-out test set. The implemented system selects a two-hidden-layer neural network with 64 neurons per layer and hyperbolic tangent activations. On the test set, the model obtains an RMSE of 64,753.78, MAE of 52,092.07, and $R^{2}$ of 0.8499. The results show that GA-guided architecture selection can reduce manual model tuning while preserving strong predictive performance for fiscal forecasting tasks.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Tax revenue forecasting, genetic algorithm, neural network, deep learning, architecture search, regression, fiscal analytics
+\end{IEEEkeywords}
+
+\section{Introduction}
+Tax revenue is one of the primary sources of government income and is closely tied to budget planning, public infrastructure expenditure, welfare allocation, and debt management. Reliable forecasting allows governments to anticipate future fiscal capacity and make informed decisions about spending priorities. Inaccurate forecasts may lead to budget shortfalls, inefficient allocation of resources, or conservative expenditure policies that slow development.
+
+Classical forecasting approaches, including linear regression, autoregressive integrated moving average (ARIMA), and econometric models, have been widely used in public finance. These methods are valuable when relationships are stable and approximately linear. However, tax revenue is influenced by interacting macroeconomic and policy variables. Gross domestic product (GDP), inflation, imports, exports, population, and corporate tax rates may affect revenue jointly rather than independently. These interactions make the problem suitable for nonlinear machine learning models.
+
+Deep neural networks can approximate nonlinear relationships, but their performance depends strongly on architectural choices such as the number of hidden layers, hidden units, and activation functions. Manual trial-and-error tuning is time consuming and may produce suboptimal architectures. To address this limitation, the project implements a GA-based neural architecture search pipeline. Candidate neural networks are represented as chromosomes, trained on standardized data, evaluated through validation mean squared error (MSE), and evolved across generations. The selected architecture is then retrained and used for deployment.
+
+The main contributions of this work are:
+\begin{itemize}
+    \item a complete GA-DNN pipeline for tax revenue prediction using macroeconomic indicators;
+    \item an architecture-search strategy that evolves hidden-layer structure and activation choice;
+    \item a reproducible preprocessing, training, evaluation, and prediction workflow implemented in Python and PyTorch;
+    \item an expanded experimental analysis using MSE, RMSE, MAE, and $R^{2}$ on a held-out test set.
+\end{itemize}
+
+\section{Related Work}
+Tax revenue forecasting has traditionally relied on econometric modeling and time-series analysis. Linear regression and related statistical approaches provide interpretability but may not capture complex nonlinear dependencies. Time-series models such as ARIMA are effective when historical temporal patterns are strong, but they generally require assumptions about stationarity and may be less effective when external macroeconomic indicators interact in nonlinear ways.
+
+Machine learning has increasingly been used for economic prediction because it can model high-dimensional relationships without requiring a fixed functional form. Random forests, gradient boosting, support vector regression, and neural networks have been applied to forecasting problems in finance and economics. However, many machine learning models require hyperparameter selection, and neural networks require architecture design. Poor architecture choices can cause underfitting, overfitting, unstable training, or unnecessarily high computational cost.
+
+Evolutionary algorithms provide a natural mechanism for hyperparameter and architecture search. Genetic Algorithms use population-based search inspired by selection, crossover, and mutation. They are especially useful when the search space is discrete, non-convex, or difficult to optimize by gradient-based methods. In neural architecture search, a GA can encode network design choices as chromosomes and evaluate each architecture using validation performance. This project applies that idea to tax revenue prediction by combining GA-based architecture search with a feed-forward neural regression model.
+
+\section{Dataset and Preprocessing}
+\subsection{Input Features}
+The dataset used in the project is a synthetic but structurally consistent macroeconomic dataset stored as \texttt{data/raw/tax\_sample.csv}. It contains 129 observations and seven columns. Six columns are used as predictors:
+\begin{itemize}
+    \item GDP;
+    \item inflation;
+    \item population;
+    \item imports;
+    \item exports;
+    \item corporate tax rate.
+\end{itemize}
+The target variable is annual tax revenue.
+
+\subsection{Dataset Characteristics}
+Table~\ref{tab:dataset_summary} summarizes the central tendency and spread of the dataset. The revenue values are on a multi-million scale, while variables such as inflation and corporate tax rate use much smaller numeric ranges. This difference in magnitude motivates feature scaling before neural network training.
+
+\begin{table}[htbp]
+\caption{Dataset Summary}
+\centering
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Variable} & \textbf{Mean} & \textbf{Std. Dev.} & \textbf{Range} \\
+\midrule
+GDP & 16,492,280 & 893,569 & 15,006,846--18,192,540 \\
+Inflation & 5.1856 & 0.8505 & 3.5937--6.5017 \\
+Population & 1325.05 & 14.74 & 1296.70--1350.51 \\
+Imports & 1,811,324 & 126,255 & 1,538,080--2,162,934 \\
+Exports & 1,646,412 & 128,678 & 1,365,825--1,971,073 \\
+Corporate tax rate & 0.2198 & 0.0104 & 0.1930--0.2463 \\
+Tax revenue & 1,788,970 & 188,217 & 1,408,187--2,170,087 \\
+\bottomrule
+\end{tabular}
+\label{tab:dataset_summary}
+\end{table}
+
+\subsection{Cleaning, Splitting, and Scaling}
+The preprocessing module reads the CSV file using Pandas. If non-numeric columns are present, the loader attempts to convert date-like columns to year values; otherwise, unsupported non-numeric columns are dropped. The remaining numeric data are separated into feature matrix $X$ and target vector $y$.
+
+The data are split into 70\% training, 15\% validation, and 15\% testing using a fixed random seed of 42. Standardization is applied separately to the input features and target values using \texttt{StandardScaler}. For an input variable $x$, the transformed value is:
+\begin{equation}
+    z = \frac{x - \mu}{\sigma},
+\end{equation}
+where $\mu$ is the training-set mean and $\sigma$ is the training-set standard deviation. Scaling is important because the predictors operate on different numeric scales. It also stabilizes neural network optimization and prevents large-valued features such as GDP from dominating the gradient updates.
+
+\section{Proposed Methodology}
+\subsection{Neural Network Regression Model}
+The prediction model is a fully connected feed-forward neural network. For an input vector $x \in \mathbb{R}^{6}$, each hidden layer applies a linear transformation followed by a nonlinear activation:
+\begin{equation}
+    h_i = \phi(W_i h_{i-1} + b_i),
+\end{equation}
+where $h_0=x$, $W_i$ and $b_i$ are trainable weights and biases, and $\phi$ is either ReLU or Tanh depending on the chromosome. The final layer maps the last hidden representation to one scalar output representing the scaled tax revenue prediction.
+
+The network is trained using MSE loss:
+\begin{equation}
+    \mathcal{L}_{MSE} = \frac{1}{n}\sum_{i=1}^{n}(y_i-\hat{y}_i)^2,
+\end{equation}
+where $y_i$ is the true target and $\hat{y}_i$ is the predicted value. The Adam optimizer is used with a learning rate of 0.001.
+
+\subsection{Genetic Algorithm Encoding}
+Each architecture candidate is represented as a chromosome:
+\begin{equation}
+    C = \{L, A\},
+\end{equation}
+where $L$ denotes the hidden-layer configuration and $A$ denotes the activation function. The implemented search space contains the hidden-layer options shown in Table~\ref{tab:search_space}.
+
+\begin{table}[htbp]
+\caption{GA Architecture Search Space}
+\centering
+\begin{tabular}{ll}
+\toprule
+\textbf{Gene} & \textbf{Possible Values} \\
+\midrule
+Hidden layers & [64, 64], [128, 64], [128, 128] \\
+ & [256, 128], [256, 128, 64] \\
+Activation & ReLU, Tanh \\
+\bottomrule
+\end{tabular}
+\label{tab:search_space}
+\end{table}
+
+\subsection{Evolution Process}
+The GA begins with a randomly initialized population of candidate architectures. Each individual is trained on the training split for 200 epochs and evaluated on the validation split using MSE. Since MSE is minimized, lower fitness values represent better candidates.
+
+The implemented evolution process uses elitism by retaining the best half of the population after each generation. New individuals are produced by choosing parent architectures from the top-ranked candidates, inheriting either parent hidden-layer settings and either parent activation function, and then applying mutation. Mutation may replace the hidden-layer configuration, the activation function, or both. The main GA parameters are listed in Table~\ref{tab:ga_params}.
+
+\begin{table}[htbp]
+\caption{Training and GA Parameters}
+\centering
+\begin{tabular}{lr}
+\toprule
+\textbf{Parameter} & \textbf{Value} \\
+\midrule
+Population size & 20 \\
+Generations & 10 \\
+Crossover probability & 0.9 \\
+Mutation probability & 0.4 \\
+Architecture-search epochs & 200 \\
+Final retraining epochs & 300 \\
+Batch size in configuration & 16 \\
+Learning rate & 0.001 \\
+Optimizer & Adam \\
+Loss function & MSE \\
+\bottomrule
+\end{tabular}
+\label{tab:ga_params}
+\end{table}
+
+\subsection{Overall Pipeline}
+The complete program workflow is:
+\begin{enumerate}
+    \item load project configuration from \texttt{configs/config.yaml};
+    \item read the macroeconomic CSV dataset;
+    \item remove or convert unsupported non-numeric fields;
+    \item split the dataset into training, validation, and test subsets;
+    \item standardize feature and target values;
+    \item run GA architecture search using validation MSE as fitness;
+    \item save the best architecture to \texttt{models/best\_architecture.json};
+    \item retrain the best architecture on training and validation data;
+    \item evaluate the retrained model on the held-out test set;
+    \item train a final deployment model on all available data;
+    \item save the PyTorch model and fitted scalers;
+    \item use the prediction script to accept user inputs and return tax revenue forecasts.
+\end{enumerate}
+
+\section{Implementation Details}
+The project is implemented in Python using PyTorch, NumPy, Pandas, Scikit-learn, DEAP, Matplotlib, and PyYAML. The repository is organized into separate modules for configuration, data loading, GA logic, model training, evaluation, visualization, and prediction.
+
+The \texttt{run\_all.py} script serves as the main pipeline entry point. It first executes the GA search script and then retrains the best architecture. After training, the user may optionally run the prediction interface. The GA search is implemented in \texttt{scripts/run\_ga\_search.py}; it creates chromosomes, evaluates them through neural training, ranks them by validation loss, and stores the best architecture. Model retraining and metric reporting are implemented in \texttt{scripts/retrain\_best\_model.py}. The deployment interface is implemented in \texttt{scripts/predict.py}.
+
+During prediction, the system loads the saved input scaler, target scaler, best architecture, and final trained PyTorch weights. The user enters the six macroeconomic predictors in the same order as the configuration file. The input is standardized using the saved scaler, passed through the neural network, and inverse-transformed back to the original revenue scale.
+
+\section{Results and Discussion}
+\subsection{Selected Architecture}
+The GA selected a neural network with two hidden layers of 64 neurons each and Tanh activations:
+\begin{equation}
+    6 \rightarrow 64 \rightarrow 64 \rightarrow 1.
+\end{equation}
+This architecture is compact enough for quick inference but expressive enough to capture nonlinear relationships among the six macroeconomic predictors.
+
+\subsection{GA Fitness Behavior}
+Fig.~\ref{fig:ga_fitness} shows the recorded GA validation-loss curve. The fitness value decreases sharply after the early generations, indicating that the evolutionary search quickly identifies stronger candidate architectures. The slight increase after the best point reflects the stochastic nature of neural training and mutation, where not every later candidate necessarily improves on the best discovered solution. The curve supports the usefulness of elitist selection and validation-based fitness evaluation in reducing the search space.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\linewidth]{ga_fitness_curve.png}
+\caption{GA evolution of validation loss over recorded generations. Lower validation MSE indicates a better architecture.}
+\label{fig:ga_fitness}
+\end{figure}
+
+\subsection{Test-Set Evaluation}
+After architecture selection, the best model was retrained for 300 epochs on the combined training and validation sets and evaluated on the held-out test set. The reported metrics were computed after inverse-transforming predictions back to the original tax revenue scale. Table~\ref{tab:results} presents the final test-set performance.
+
+\begin{table}[htbp]
+\caption{Held-Out Test-Set Performance}
+\centering
+\begin{tabular}{lr}
+\toprule
+\textbf{Metric} & \textbf{Value} \\
+\midrule
+MSE & 4,193,052,107.50 \\
+RMSE & 64,753.78 \\
+MAE & 52,092.07 \\
+$R^{2}$ & 0.8499 \\
+\bottomrule
+\end{tabular}
+\label{tab:results}
+\end{table}
+
+The $R^{2}$ value of 0.8499 indicates that the model explains approximately 85\% of the variance in test-set tax revenue. The RMSE and MAE should be interpreted relative to the target scale. Since the dataset has an average tax revenue of approximately 1.79 million, the RMSE is about 3.6\% of the mean target value. This suggests that the model achieves useful predictive accuracy for a compact neural architecture.
+
+\subsection{Interpretation}
+The model benefits from combining standardized macroeconomic features with nonlinear neural regression. GDP, imports, exports, population, inflation, and corporate tax rate provide complementary signals about economic activity and tax capacity. The use of Tanh activations in the selected network suggests that bounded nonlinear transformations were effective after standardization. Because both $X$ and $y$ are scaled, the network learns in a numerically stable space and predictions can be returned to the original revenue units using the stored target scaler.
+
+\subsection{Comparison With Manual Tuning}
+A key advantage of the GA-DNN approach is reduced dependence on manual architecture selection. Instead of manually training several networks and comparing them informally, the system formalizes architecture selection as a validation-loss minimization problem. This makes the experimental process more repeatable. The saved JSON architecture also improves reproducibility because the final model can be rebuilt with the same hidden layers and activation function.
+
+\section{Deployment}
+The project includes a command-line prediction interface suitable for demonstration and lightweight deployment. The deployment model is trained on the full dataset after evaluation is completed. This final training stage uses all available observations to maximize the data used by the production model. The following artifacts are saved:
+\begin{itemize}
+    \item \texttt{models/final\_model.pth}: final PyTorch model weights;
+    \item \texttt{models/final\_X\_scaler.pkl}: fitted input scaler;
+    \item \texttt{models/final\_y\_scaler.pkl}: fitted target scaler;
+    \item \texttt{models/best\_architecture.json}: selected architecture.
+\end{itemize}
+
+At inference time, consistency between training and deployment is maintained by reusing the same feature order and scalers. This is important because a neural model trained on standardized inputs would produce unreliable predictions if raw values were passed directly to it.
+
+\section{Limitations}
+Although the project demonstrates a functional GA-DNN forecasting pipeline, several limitations remain. First, the dataset is synthetic and contains a limited number of observations. Real-world tax revenue forecasting may require larger datasets, multiple years of historical information, sector-level tax categories, policy changes, and external macroeconomic shocks. Second, the current model treats observations as independent records and does not explicitly model temporal dependence. Third, the GA search space is intentionally small to keep execution practical, so larger architecture spaces may produce further improvements. Finally, repeated runs can produce slightly different metrics because neural initialization and evolutionary sampling are stochastic.
+
+\section{Future Work}
+Future improvements can extend the system in several directions:
+\begin{itemize}
+    \item use real-world datasets from government finance portals, central banks, and international economic repositories;
+    \item add time-series features such as lagged revenue, GDP growth rate, and moving averages;
+    \item evaluate recurrent neural networks, LSTM models, temporal convolutional networks, and transformer-based forecasters;
+    \item compare GA-DNN performance against linear regression, random forest, gradient boosting, and support vector regression baselines;
+    \item add cross-validation or repeated train-test runs to improve robustness of reported metrics;
+    \item deploy the model through a web dashboard for fiscal analysts and policy planners.
+\end{itemize}
+
+\section{Conclusion}
+This paper presented a hybrid tax revenue forecasting framework that combines Genetic Algorithms with Deep Neural Networks. The GA searches over neural hidden-layer configurations and activation functions, using validation MSE as the fitness objective. The selected architecture, a 64--64 Tanh network, was retrained and evaluated on a held-out test set. The model achieved an RMSE of 64,753.78, MAE of 52,092.07, and $R^{2}$ of 0.8499 on the original tax revenue scale. These results demonstrate that GA-guided architecture search can provide an effective and reproducible approach for neural tax revenue forecasting while reducing manual experimentation.
+
+\section*{Acknowledgment}
+The authors thank PES University for academic support and project guidance.
+
+\begin{thebibliography}{00}
+\bibitem{mitchell1998}
+M. Mitchell, \textit{An Introduction to Genetic Algorithms}. Cambridge, MA, USA: MIT Press, 1998.
+
+\bibitem{goodfellow2016}
+I. Goodfellow, Y. Bengio, and A. Courville, \textit{Deep Learning}. Cambridge, MA, USA: MIT Press, 2016.
+
+\bibitem{bergstra2012}
+J. Bergstra and Y. Bengio, ``Random search for hyper-parameter optimization,'' \textit{Journal of Machine Learning Research}, vol. 13, pp. 281--305, 2012.
+
+\bibitem{kingma2015}
+D. P. Kingma and J. Ba, ``Adam: A method for stochastic optimization,'' in \textit{Proc. International Conference on Learning Representations}, 2015.
+
+\bibitem{holland1992}
+J. H. Holland, \textit{Adaptation in Natural and Artificial Systems}. Cambridge, MA, USA: MIT Press, 1992.
+
+\bibitem{bengio2012}
+Y. Bengio, ``Practical recommendations for gradient-based training of deep architectures,'' in \textit{Neural Networks: Tricks of the Trade}, 2nd ed. Berlin, Germany: Springer, 2012, pp. 437--478.
+
+\bibitem{bishop2006}
+C. M. Bishop, \textit{Pattern Recognition and Machine Learning}. New York, NY, USA: Springer, 2006.
+\end{thebibliography}
+
+\end{document}
